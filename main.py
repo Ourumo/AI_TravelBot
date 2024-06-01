@@ -1,9 +1,11 @@
 import gradio as gr
+from PIL import Image
 import urllib.request
 from urllib.parse import urlencode
 from dotenv import load_dotenv
 from openai import OpenAI
 import google.generativeai as genai
+from io import BytesIO
 import os, pyaudio, wave
 
 # .env
@@ -152,10 +154,12 @@ def GetImage(chatbot):
         quality = "standard",
         n=1
     )
-    
+
     image_url = response.data[0].url
-    urllib.request.urlretrieve(image_url, "generated_image.jpg")
-    return "generated_image.jpg"
+    with urllib.request.urlopen(image_url) as url:
+        image_data = url.read()
+    image = Image.open(BytesIO(image_data))
+    return image
 
 # gradio UI 구성
 with gr.Blocks(title="여행 챗봇") as demo:
