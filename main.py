@@ -35,25 +35,24 @@ system_prompt = """
 # gemini-pro-vision, gpt-3.5-turbo를 이용한 답변 생성
 def Process(prompt, history, image) -> str:
     global memory_history_size
+    
     local_system_prompt = ""
-    his_size = memory_history_size if(len(history) > memory_history_size) else len(history)
+    his_size = memory_history_size if(len(history) > memory_history_size) else len(history) # 저장하는 history의 크기
     question = [his[0] for his in history]
-    #question = question[::-1][:his_size]
     answer = [his[1] for his in history]
-    #answer = answer[::-1][:his_size]
-    #print(his_size, question, answer)
+    
+    # 입력받은 이미지가 없으면 gemini-pro-vision 사용 X
     if(image != None):
         vmodel = genai.GenerativeModel('gemini-pro-vision')
         response = vmodel.generate_content(["위치가 어디야? 간단하게 알려줘.", image])
-        #location_info = response.text
-        #location = location_info.strip()
-        location = response.parts[0].text.strip() # OS의 문제로 추정 // windows OS는 위의 주석 처리한 코드 사용
+        location = response.parts[0].text.strip()
         local_system_prompt += location
-    
     local_system_prompt += system_prompt
-    for q in range(len(question)):
+    
+    # local_system_prompt에 history 추가
+    for q in range(his_size):
         local_system_prompt += f"user의 {q}번째 질문: {question[q]}\n"
-    for a in range(len(answer)):
+    for a in range(his_size):
         local_system_prompt += f"system의 {a}번째 대답: {answer[a]}\n"
     
     completion = client.chat.completions.create(
@@ -178,7 +177,7 @@ def GetImage(chatbot):
     return image
 
 # YouTube API를 이용한 비디오 검색 및 출력
-def GetVideo(chatbot):
+def GetVideo(chatbot) -> str:
     # chatbot = [[res, req], ...]
     text = chatbot[-1][1]
     
