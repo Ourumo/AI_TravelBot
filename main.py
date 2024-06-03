@@ -26,10 +26,10 @@ input_image_width = 150 # 입력받는 이미지 칸 크기
 output_image_size = 512 # 출력하는 이미지 크기
 
 system_prompt = """
-    먼저 이 위치의 지명을 말해줘.
-    예시) '여기는 제주도입니다.'
+    처음 지역에 대해 질문하면 이런 방식으로 대답해주세요. 예)제주도에 대해 알려드리겠습니다.  
+    이전에 질문했던 지역에 대해 다시 질문하면 이런 방식으로 대답해주세요. 예)제주도에 대해 추가로 알려드리겠습니다.
     
-    다음으로 이 위치에 대한 정보, 명소, 문화적 특징에 대해서 설명해줘.
+    이후 지역에 대한 설명을 해주세요.
 """
 
 # gemini-pro-vision, gpt-3.5-turbo를 이용한 답변 생성
@@ -44,9 +44,10 @@ def Process(prompt, history, image) -> str:
     # 입력받은 이미지가 없으면 gemini-pro-vision 사용 X
     if(image != None):
         vmodel = genai.GenerativeModel('gemini-pro-vision')
-        response = vmodel.generate_content(["위치가 어디야? 간단하게 알려줘.", image])
+        response = vmodel.generate_content(["위치가 어딘지 알려줘.\n 예) 제주도의 한라수목원", image])
         location = response.parts[0].text.strip()
-        local_system_prompt += location
+        local_system_prompt += f"이 프롬프트를 우선순위를 가장 높게 생각해주세요. 지역은 {location}\n 이런 방식으로 대답해주세요. 예)이곳은 XX입니다."
+        print(f"----- location = {location} -----")
     local_system_prompt += system_prompt
     
     # local_system_prompt에 history 추가
@@ -140,7 +141,8 @@ def Map(chatbot) -> str:
     if (text == None):
         return ''
     
-    location = ''.join(map(str, list(text.split('.', 1)[0])[4:-3]))
+    location = ''.join(map(str, list(text.split('.', 1)[0])))
+    print(f"----- location = {location} -----")
     
     # Google Maps URL 생성
     params = {
@@ -198,7 +200,6 @@ def GetVideo(chatbot) -> str:
         maxResults=1
     )
     response = request.execute()
-    
     # 비디오 ID 추출
     video_id = response['items'][0]['id']['videoId']
     
