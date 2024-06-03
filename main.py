@@ -21,6 +21,7 @@ genai.configure()
 googlemaps_api_key = os.getenv("GOOGLEMAPS_API_KEY")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
+memory_history_size = 10 # 기억하고 있는 history의 크기
 input_image_width = 150 # 입력받는 이미지 칸 크기
 output_image_size = 512 # 출력하는 이미지 크기
 
@@ -33,7 +34,14 @@ system_prompt = """
 
 # gemini-pro-vision, gpt-3.5-turbo를 이용한 답변 생성
 def Process(prompt, history, image) -> str:
+    global memory_history_size
     local_system_prompt = ""
+    his_size = memory_history_size if(len(history) > memory_history_size) else len(history)
+    question = [his[0] for his in history]
+    #question = question[::-1][:his_size]
+    answer = [his[1] for his in history]
+    #answer = answer[::-1][:his_size]
+    #print(his_size, question, answer)
     if(image != None):
         vmodel = genai.GenerativeModel('gemini-pro-vision')
         response = vmodel.generate_content(["위치가 어디야? 간단하게 알려줘.", image])
@@ -43,6 +51,11 @@ def Process(prompt, history, image) -> str:
         local_system_prompt += location
     
     local_system_prompt += system_prompt
+    for q in range(len(question)):
+        local_system_prompt += f"user의 {q}번째 질문: {question[q]}\n"
+    for a in range(len(answer)):
+        local_system_prompt += f"system의 {a}번째 대답: {answer[a]}\n"
+    
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
