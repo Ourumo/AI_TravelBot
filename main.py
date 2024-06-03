@@ -7,16 +7,19 @@ from openai import OpenAI
 import google.generativeai as genai
 from io import BytesIO
 import os, pyaudio, wave
+from googleapiclient.discovery import build
 
 # .env
 # OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 # GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY
 # GOOGLEMAPS_API_KEY=YOUR_GOOGLEMAPS_API_KEY
+# YOUTUBE_API_KEY=YOUR_YOUTUBE_API_KEY
 load_dotenv()
 
 client = OpenAI()
 genai.configure()
 googlemaps_api_key = os.getenv("GOOGLEMAPS_API_KEY")
+youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
 input_image_width = 150 # 입력받는 이미지 칸 크기
 output_image_size = 512 # 출력하는 이미지 크기
@@ -161,6 +164,34 @@ def GetImage(chatbot):
     image = Image.open(BytesIO(image_data))
     return image
 
+# YouTube API를 이용한 비디오 검색 및 출력
+def GetVideo(chatbot):
+    # chatbot = [[res, req], ...]
+    text = chatbot[-1][1]
+    
+    # text 값이 없을 때의 예외 처리
+    if (text == None):
+        return ''
+    
+    location = ''.join(map(str, list(text.split('.', 1)[0])[4:-3]))
+    
+    youtube = build('youtube', 'v3', developerKey=youtube_api_key)
+    
+    # 검색 쿼리 설정
+    request = youtube.search().list(
+        part="snippet",
+        q=f"{location} travel",
+        type="video",
+        relevanceLanguage="ko",  # This line ensures the results are relevant to Korean language
+        maxResults=1
+    )
+    response = request.execute()
+    
+    # 비디오 ID 추출
+    video_id = response['items'][0]['id']['videoId']
+    
+    return f'<iframe width="560" height="315" src="https://www.youtube.com/embed/{video_id}" frameborder="0" allowfullscreen></iframe>'
+
 # gradio UI 구성
 with gr.Blocks(title="여행 챗봇") as demo:
     with gr.Row():
@@ -191,6 +222,10 @@ with gr.Blocks(title="여행 챗봇") as demo:
             # Image
             image = gr.Image(value=None, height=output_image_size, width=output_image_size, label="여행지 랜드마크")
             chat.chatbot.change(fn=GetImage, inputs=chat.chatbot, outputs=image)
+            
+            # Video
+            video = gr.HTML(label="여행지 소개 영상")
+            chat.chatbot.change(fn=GetVideo, inputs=chat.chatbot, outputs=video)
 
 # app 실행
 if __name__ == "__main__":
