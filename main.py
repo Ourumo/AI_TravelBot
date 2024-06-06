@@ -25,30 +25,37 @@ memory_history_size = 10 # 기억하고 있는 history의 크기
 input_image_width = 150 # 입력받는 이미지 칸 크기
 output_image_size = 512 # 출력하는 이미지 크기
 
+loction_memory = '' # 여행지 임시 저장
+
 system_prompt = """
-    처음 지역에 대해 질문하면 이런 방식으로 대답해주세요. 예)제주도에 대해 알려드리겠습니다.  
-    이전에 질문했던 지역에 대해 다시 질문하면 이런 방식으로 대답해주세요. 예)제주도에 대해 추가로 알려드리겠습니다.
-    
-    이후 지역에 대한 설명을 해주세요.
+    이 지역에 대해 설명해주세요.
 """
 
 # gemini-pro-vision, gpt-3.5-turbo를 이용한 답변 생성
 def Process(prompt, history, image) -> str:
     global memory_history_size
+    global loction_memory
     
     local_system_prompt = ""
     his_size = memory_history_size if(len(history) > memory_history_size) else len(history) # 저장하는 history의 크기
     question = [his[0] for his in history]
     answer = [his[1] for his in history]
     
-    # 입력받은 이미지가 없으면 gemini-pro-vision 사용 X
+    # 입력받은 이미지가 있으면 gemini-pro-vision 사용
     if(image != None):
         vmodel = genai.GenerativeModel('gemini-pro-vision')
-        response = vmodel.generate_content(["위치가 어딘지 알려줘.\n 예) 제주도의 한라수목원", image])
+        response = vmodel.generate_content(["위치가 어딘지 한 단어로 대답해주세요.", image])
         location = response.parts[0].text.strip()
-        local_system_prompt += f"이 프롬프트를 우선순위를 가장 높게 생각해주세요. 지역은 {location}\n 이런 방식으로 대답해주세요. 예)이곳은 XX입니다."
+        prompt += f"지역은 {location}입니다. 이 지역에 대해 설명해주세요"
         print(f"----- location = {location} -----")
-    local_system_prompt += system_prompt
+    
+    # 설명
+    completion = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": local_system_prompt},
+            {"role": "user", "content": prompt}]
+    )
     
     # local_system_prompt에 history 추가
     for q in range(his_size):
@@ -62,6 +69,16 @@ def Process(prompt, history, image) -> str:
             {"role": "system", "content": local_system_prompt},
             {"role": "user", "content": prompt}]
     )
+    location_completion = client.chat.completions.create(
+    model="gpt-3.5-turbo",
+    messages=[
+        {"role": "system", "content": """
+         여행지나 관광지 이름을 메인 키워드로 뽑아서 한 단어로 대답해주세요.
+        """},
+        {"role": "user", "content": completion.choices[0].message.content}]
+    )
+    loction_memory = location_completion.choices[0].message.content
+    
     return completion.choices[0].message.content
 
 # pyaudio, wave, whisper-1을 이용한 입력한 음성을 텍스트로 변경
@@ -134,6 +151,8 @@ def Speak(chatbot) -> bytes:
 
 # Google Map API를 이용한 지도 출력
 def Map(chatbot) -> str:
+    global loction_memory
+    
     # chatbot = [[res, req], ...]
     text = chatbot[-1][1]
     
@@ -141,7 +160,7 @@ def Map(chatbot) -> str:
     if (text == None):
         return ''
     
-    location = ''.join(map(str, list(text.split('.', 1)[0])))
+    location = loction_memory
     print(f"----- location = {location} -----")
     
     # Google Maps URL 생성
@@ -237,11 +256,11 @@ with gr.Blocks(title="여행 챗봇") as demo:
             
             # Image
             image = gr.Image(value=None, height=output_image_size, width=output_image_size, label="여행지 랜드마크")
-            chat.chatbot.change(fn=GetImage, inputs=chat.chatbot, outputs=image)
+            #chat.chatbot.change(fn=GetImage, inputs=chat.chatbot, outputs=image)
             
             # Video
             video = gr.HTML(label="여행지 소개 영상")
-            chat.chatbot.change(fn=GetVideo, inputs=chat.chatbot, outputs=video)
+            #chat.chatbot.change(fn=GetVideo, inputs=chat.chatbot, outputs=video)
 
 # app 실행
 if __name__ == "__main__":
