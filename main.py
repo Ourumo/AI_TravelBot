@@ -99,7 +99,7 @@ def Record(audio) -> str:
     return transcription.text
 
 # pyaudio, tts-1을 이용한 답변 텍스트를 음성으로 출력
-def Speak(chatbot) -> None:
+def Speak(chatbot) -> bytes:
     # chatbot = [[res, req], ...]
     text = chatbot[-1][1]
     
@@ -120,17 +120,17 @@ def Speak(chatbot) -> None:
                     channels=CHANNELS,
                     rate=RATE,
                     output=True)
-
+    
+    
     # tts-1
     with client.audio.speech.with_streaming_response.create(
+        input=text,
         model="tts-1",
         voice="alloy",
-        response_format="pcm",
-        input=text,
+        response_format="wav",
         speed='1.2'
     ) as response:
-        for chunk in response.iter_bytes(chunk_size=CHUNK):
-            stream.write(chunk)
+        return response.read()
 
 # Google Map API를 이용한 지도 출력
 def Map(chatbot) -> str:
@@ -220,14 +220,17 @@ with gr.Blocks(title="여행 챗봇") as demo:
                 clear_btn=None)
             chat.chatbot.height = 400
             chat.chatbot.label = "여행 챗봇"
-            chat.chatbot.change(fn=Speak, inputs=chat.chatbot)
             
-            # Audio
-            audio = gr.Audio(sources='microphone', container=False)
-            audio.change(fn=Record, inputs=audio, outputs=chat.textbox)
+            # Audio(입력)
+            input_audio = gr.Audio(sources='microphone', container=False)
+            input_audio.change(fn=Record, inputs=input_audio, outputs=chat.textbox)
             
         # 우측 UI 구성
         with gr.Column():
+            # Audio(출력)
+            output_audio = gr.Audio(visible=False, autoplay=True)
+            chat.chatbot.change(fn=Speak, inputs=chat.chatbot, outputs=output_audio)
+            
             # HTML(지도)
             html = gr.HTML(label="지도")
             chat.chatbot.change(fn=Map, inputs=chat.chatbot, outputs=html)
