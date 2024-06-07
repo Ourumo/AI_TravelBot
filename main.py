@@ -28,10 +28,15 @@ output_image_size = 512 # 출력하는 이미지 크기
 loction_memory = '' # 여행지 임시 저장
 
 system_prompt = """
-    사용자의 질문에서 말한 지역에 대해 설명해주세요.
-    만약, 사용자의 질문에 '지도'라는 단어가 있으면 '요청한 지역의 지도를 띄었습니다.'라고 대답해주세요.
-    만약, 사용자의 질문에 '영상'이라는 단어가 있으면 '요청한 지역의 영상을 띄었습니다.'라고 대답해주세요.
-    만약, 사용자의 질문에 '그림'이라는 단어가 있으면 '요청한 지역의 그림을 띄었습니다.'라고 대답해주세요.
+    당신은 사용자가 입력한 특정 지역에 대한 설명을 제공하는 AI입니다.
+    사용자가 입력한 내용이란 당신의 대답을 제외한 내용입니다.
+    
+    사용자가 입력한 특정 지역에 대해 설명해주고,
+    사용자가 입력한 내용에 '지도'라는 단어가 존재할 때만 '요청한 지역의 지도를 띄웠습니다.'라고 대답해주세요.
+    사용자가 입력한 내용에 '영상'이라는 단어가 존재할 때만 '요청한 지역의 영상을 띄웠습니다.',라고 대답해주세요.
+    사용자가 입력한 내용에 '그림'이라는 단어가 존재할 때만 '요청한 지역의 그림을 띄웠습니다.',라고 대답해주세요.
+    
+    단어가 포함되지 않았다는 대답은 하지않아도 됩니다.
 """
 
 # gemini-pro-vision, gpt-3.5-turbo를 이용한 답변 생성
@@ -51,7 +56,6 @@ def Process(prompt, history, image) -> str:
         response = vmodel.generate_content(["위치가 어딘지 한 단어로 대답해주세요.", image])
         location = response.parts[0].text.strip()
         prompt += f"지역은 {location}입니다. 이 지역에 대해 설명해주세요"
-        print(f"----- location = {location} -----")
     
     # 설명
     completion = client.chat.completions.create(
@@ -79,7 +83,7 @@ def Process(prompt, history, image) -> str:
         {"role": "system", "content": """
          여행지나 관광지 이름을 메인 키워드로 뽑아서 한 단어로 대답해주세요.
         """},
-        {"role": "user", "content": prompt + completion.choices[0].message.content}]
+        {"role": "user", "content": f"{prompt}, {completion.choices[0].message.content}"}]
     )
     loction_memory = location_completion.choices[0].message.content
     
@@ -154,18 +158,22 @@ def Speak(chatbot) -> bytes:
         return response.read()
 
 # Google Map API를 이용한 지도 출력
-def Map(chatbot) -> str:
+def Map(chatbot, html) -> str:
     global loction_memory
     
     # chatbot = [[res, req], ...]
-    text = chatbot[-1][1]
+    res = chatbot[-1][0]
+    req = chatbot[-1][1]
     
-    # text 값이 없을 때의 예외 처리
-    if (text == None):
-        return ''
+    # req 값이 없을 때의 예외 처리
+    if(req == None):
+        return html
+    
+    # '지도'라는 단어가 있는지 확인, 첫 대화 질문인지 확인
+    if(res.count('지도') == 0 and len(chatbot) != 1):
+        return html
     
     location = loction_memory
-    print(f"----- location = {location} -----")
     
     # Google Maps URL 생성
     params = {
@@ -256,7 +264,7 @@ with gr.Blocks(title="여행 챗봇") as demo:
             
             # HTML(지도)
             html = gr.HTML(label="지도")
-            chat.chatbot.change(fn=Map, inputs=chat.chatbot, outputs=html)
+            chat.chatbot.change(fn=Map, inputs=[chat.chatbot, html], outputs=html)
             
             # Image
             image = gr.Image(value=None, height=output_image_size, width=output_image_size, label="여행지 랜드마크")
