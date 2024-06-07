@@ -28,15 +28,19 @@ output_image_size = 512 # 출력하는 이미지 크기
 loction_memory = '' # 여행지 임시 저장
 
 system_prompt = """
-    이 지역에 대해 설명해주세요.
+    사용자의 질문에서 말한 지역에 대해 설명해주세요.
+    만약, 사용자의 질문에 '지도'라는 단어가 있으면 '요청한 지역의 지도를 띄었습니다.'라고 대답해주세요.
+    만약, 사용자의 질문에 '영상'이라는 단어가 있으면 '요청한 지역의 영상을 띄었습니다.'라고 대답해주세요.
+    만약, 사용자의 질문에 '그림'이라는 단어가 있으면 '요청한 지역의 그림을 띄었습니다.'라고 대답해주세요.
 """
 
 # gemini-pro-vision, gpt-3.5-turbo를 이용한 답변 생성
 def Process(prompt, history, image) -> str:
     global memory_history_size
     global loction_memory
+    global system_prompt
     
-    local_system_prompt = ""
+    local_system_prompt = system_prompt
     his_size = memory_history_size if(len(history) > memory_history_size) else len(history) # 저장하는 history의 크기
     question = [his[0] for his in history]
     answer = [his[1] for his in history]
@@ -75,7 +79,7 @@ def Process(prompt, history, image) -> str:
         {"role": "system", "content": """
          여행지나 관광지 이름을 메인 키워드로 뽑아서 한 단어로 대답해주세요.
         """},
-        {"role": "user", "content": completion.choices[0].message.content}]
+        {"role": "user", "content": prompt + completion.choices[0].message.content}]
     )
     loction_memory = location_completion.choices[0].message.content
     
@@ -121,7 +125,7 @@ def Speak(chatbot) -> bytes:
     text = chatbot[-1][1]
     
     # text 값이 없을 때의 예외 처리
-    if (text == None):
+    if(text == None):
         return
     
     # PyAudio 객체 생성
@@ -178,7 +182,7 @@ def GetImage(chatbot):
     text = chatbot[-1][1]
     
     # text 값이 없을 때의 예외 처리
-    if (text == None):
+    if(text == None):
         return "./loading.gif"
     
     location = ''.join(map(str, list(text.split('.', 1)[0])[4:-3]))
@@ -203,7 +207,7 @@ def GetVideo(chatbot) -> str:
     text = chatbot[-1][1]
     
     # text 값이 없을 때의 예외 처리
-    if (text == None):
+    if(text == None):
         return ''
     
     location = ''.join(map(str, list(text.split('.', 1)[0])[4:-3]))
