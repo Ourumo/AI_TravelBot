@@ -29,12 +29,13 @@ loction_memory = '' # 여행지 임시 저장
 
 system_prompt = """
     당신은 사용자가 입력한 특정 지역에 대한 설명을 제공하는 AI입니다.
-    사용자가 입력한 내용이란 당신의 대답을 제외한 내용입니다.
+    '사용자가 입력한 내용'은 당신의 대답을 제외한 내용입니다.
     
     사용자가 입력한 특정 지역에 대해 설명해주고,
-    사용자가 입력한 내용에 '지도'라는 단어가 존재할 때만 '요청한 지역의 지도를 띄웠습니다.'라고 대답해주세요.
-    사용자가 입력한 내용에 '영상'이라는 단어가 존재할 때만 '요청한 지역의 영상을 띄웠습니다.',라고 대답해주세요.
-    사용자가 입력한 내용에 '그림'이라는 단어가 존재할 때만 '요청한 지역의 그림을 띄웠습니다.',라고 대답해주세요.
+    '사용자가 입력한 내용'에 '지도'라는 단어가 존재할 때만 '요청한 지역의 지도를 띄웠습니다.'라고 대답해주고,
+    '사용자가 입력한 내용'에 '영상'이라는 단어가 존재할 때만 '요청한 지역의 영상을 띄웠습니다.',라고 대답해주고,
+    '사용자가 입력한 내용'에 '그림'이라는 단어가 존재할 때만 '요청한 지역의 그림을 띄웠습니다.',라고 대답해주세요.
+    '사용자가 입력한 내용'은 당신의 대답을 제외한 내용입니다.
     
     단어가 포함되지 않았다는 대답은 하지않아도 됩니다.
 """
@@ -169,7 +170,7 @@ def Map(chatbot, html) -> str:
     if(req == None):
         return html
     
-    # '지도'라는 단어가 있는지 확인, 첫 대화 질문인지 확인
+    # '지도'라는 단어가 있는지 확인, 첫 대화 질문이 아닌지 확인
     if(res.count('지도') == 0 and len(chatbot) != 1):
         return html
     
@@ -185,15 +186,22 @@ def Map(chatbot, html) -> str:
     return f'<iframe width="450" height="450" style="border:0" loading="lazy" allowfullscreen src="{googlemaps_url}"></iframe>'
 
 # dall-e-3를 이용한 이미지 생성
-def GetImage(chatbot):
+def GetImage(chatbot, image):
+    global loction_memory
+    
     # chatbot = [[res, req], ...]
-    text = chatbot[-1][1]
+    res = chatbot[-1][0]
+    req = chatbot[-1][1]
     
-    # text 값이 없을 때의 예외 처리
-    if(text == None):
-        return "./loading.gif"
+    # req 값이 없을 때의 예외 처리
+    if(req == None):
+        return image
     
-    location = ''.join(map(str, list(text.split('.', 1)[0])[4:-3]))
+    # '그림'이라는 단어가 있는지 확인, 첫 대화 질문이 아닌지 확인
+    if(res.count('그림') == 0 and len(chatbot) != 1):
+        return image
+    
+    location = loction_memory
     
     response = client.images.generate(
         model="dall-e-3",
@@ -210,15 +218,22 @@ def GetImage(chatbot):
     return image
 
 # YouTube API를 이용한 비디오 검색 및 출력
-def GetVideo(chatbot) -> str:
+def GetVideo(chatbot, video) -> str:
+    global loction_memory
+    
     # chatbot = [[res, req], ...]
-    text = chatbot[-1][1]
+    res = chatbot[-1][0]
+    req = chatbot[-1][1]
     
-    # text 값이 없을 때의 예외 처리
-    if(text == None):
-        return ''
+    # req 값이 없을 때의 예외 처리
+    if(req == None):
+        return video
     
-    location = ''.join(map(str, list(text.split('.', 1)[0])[4:-3]))
+    # '영상'이라는 단어가 있는지 확인, 첫 대화 질문이 아닌지 확인
+    if(res.count('영상') == 0 and len(chatbot) != 1):
+        return video
+    
+    location = loction_memory
     
     youtube = build('youtube', 'v3', developerKey=youtube_api_key)
     
@@ -248,7 +263,8 @@ with gr.Blocks(title="여행 챗봇") as demo:
                 additional_inputs=gr.Image(height=input_image_width, sources='upload', type="pil", label="이미지"),
                 retry_btn=None,
                 undo_btn=None,
-                clear_btn=None)
+                clear_btn=None
+            )
             chat.chatbot.height = 400
             chat.chatbot.label = "여행 챗봇"
             
@@ -264,15 +280,18 @@ with gr.Blocks(title="여행 챗봇") as demo:
             
             # HTML(지도)
             html = gr.HTML(label="지도")
-            chat.chatbot.change(fn=Map, inputs=[chat.chatbot, html], outputs=html)
+            #chat.chatbot.change(fn=Map, inputs=[chat.chatbot, html], outputs=html)
             
             # Image
-            image = gr.Image(value=None, height=output_image_size, width=output_image_size, label="여행지 랜드마크")
-            #chat.chatbot.change(fn=GetImage, inputs=chat.chatbot, outputs=image)
+            image = gr.Image(
+                value=None, height=output_image_size, width=output_image_size, 
+                sources=[], label="여행지 랜드마크", show_share_button=True
+            )
+            #chat.chatbot.change(fn=GetImage, inputs=[chat.chatbot, image], outputs=image)
             
             # Video
             video = gr.HTML(label="여행지 소개 영상")
-            #chat.chatbot.change(fn=GetVideo, inputs=chat.chatbot, outputs=video)
+            #chat.chatbot.change(fn=GetVideo, inputs=[chat.chatbot, video], outputs=video)
 
 # app 실행
 if __name__ == "__main__":
