@@ -41,7 +41,6 @@ system_prompt = """
 
 # gemini-pro-vision, gpt-3.5-turbo를 이용한 답변 생성
 def Process(prompt, history, image) -> str:
-    global memory_history_size
     global loction_memory
     global system_prompt
     
