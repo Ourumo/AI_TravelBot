@@ -21,7 +21,6 @@ genai.configure()
 googlemaps_api_key = os.getenv("GOOGLEMAPS_API_KEY")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
-memory_history_size = 10 # 기억하고 있는 history의 크기
 input_image_width = 150 # 입력받는 이미지 칸 크기
 output_image_size = 512 # 출력하는 이미지 크기
 
@@ -47,7 +46,7 @@ def Process(prompt, history, image) -> str:
     global system_prompt
     
     local_system_prompt = system_prompt
-    his_size = memory_history_size if(len(history) > memory_history_size) else len(history) # 저장하는 history의 크기
+    his_size = len(history) # 저장하는 history의 크기
     question = [his[0] for his in history]
     answer = [his[1] for his in history]
     
@@ -81,9 +80,7 @@ def Process(prompt, history, image) -> str:
     location_completion = client.chat.completions.create(
     model="gpt-3.5-turbo",
     messages=[
-        {"role": "system", "content": """
-         여행지나 관광지 이름을 메인 키워드로 뽑아서 한 단어로 대답해주세요.
-        """},
+        {"role": "system", "content": "여행지나 관광지 이름을 메인 키워드로 뽑아서 한 단어로 대답해주세요."},
         {"role": "user", "content": f"{prompt}, {completion.choices[0].message.content}"}]
     )
     loction_memory = location_completion.choices[0].message.content
