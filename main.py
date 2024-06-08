@@ -280,18 +280,18 @@ with gr.Blocks(title="여행 챗봇") as demo:
             
             # HTML(지도)
             html = gr.HTML(label="지도")
-            #chat.chatbot.change(fn=Map, inputs=[chat.chatbot, html], outputs=html)
+            chat.chatbot.change(fn=Map, inputs=[chat.chatbot, html], outputs=html)
             
             # Image
             image = gr.Image(
                 value=None, height=output_image_size, width=output_image_size, 
                 sources=[], label="여행지 랜드마크", show_share_button=True
             )
-            #chat.chatbot.change(fn=GetImage, inputs=[chat.chatbot, image], outputs=image)
+            chat.chatbot.change(fn=GetImage, inputs=[chat.chatbot, image], outputs=image)
             
             # Video
             video = gr.HTML(label="여행지 소개 영상")
-            #chat.chatbot.change(fn=GetVideo, inputs=[chat.chatbot, video], outputs=video)
+            chat.chatbot.change(fn=GetVideo, inputs=[chat.chatbot, video], outputs=video)
 
 # app 실행
 if __name__ == "__main__":
