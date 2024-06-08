@@ -252,6 +252,10 @@ with gr.Blocks(title="여행 챗봇") as demo:
     with gr.Row():
         # 좌측 UI 구성
         with gr.Column():
+            # Button(refresh)
+            refresh_button = gr.Button("새 여행지 질문하기")
+            refresh_button.click(fn=None, js="window.location.reload()")
+            
             # ChatInterface
             chat = gr.ChatInterface(
                 fn=Process,
