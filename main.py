@@ -30,7 +30,7 @@ system_prompt = """
     당신은 사용자가 입력한 특정 지역에 대한 설명을 제공하는 AI입니다.
     '사용자가 입력한 내용'은 당신의 대답을 제외한 내용입니다.
     
-    사용자가 입력한 특정 지역에 대해 설명해주고,
+    '사용자가 입력한 내용'에서 특정 지역에 대해 설명해주고,
     '사용자가 입력한 내용'에 '지도'라는 단어가 존재할 때만 '요청한 지역의 지도를 띄웠습니다.'라고 대답해주고,
     '사용자가 입력한 내용'에 '영상'이라는 단어가 존재할 때만 '요청한 지역의 영상을 띄웠습니다.',라고 대답해주고,
     '사용자가 입력한 내용'에 '그림'이라는 단어가 존재할 때만 '요청한 지역의 그림을 띄웠습니다.',라고 대답해주세요.
@@ -56,14 +56,6 @@ def Process(prompt, history, image) -> str:
         location = response.parts[0].text.strip()
         prompt += f"지역은 {location}입니다. 이 지역에 대해 설명해주세요"
     
-    # 설명
-    completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": local_system_prompt},
-            {"role": "user", "content": prompt}]
-    )
-    
     # local_system_prompt에 history 추가
     for q in range(his_size):
         local_system_prompt += f"user의 {q}번째 질문: {question[q]}\n"
@@ -79,10 +71,11 @@ def Process(prompt, history, image) -> str:
     location_completion = client.chat.completions.create(
     model="gpt-3.5-turbo",
     messages=[
-        {"role": "system", "content": "여행지나 관광지 이름을 메인 키워드로 뽑아서 한 단어로 대답해주세요."},
+        {"role": "system", "content": "여행지나 관광지 이름을 메인 키워드로 뽑아서 한 단어로 대답해주세요. 예)제주도, 강원도"},
         {"role": "user", "content": f"{prompt}, {completion.choices[0].message.content}"}]
     )
     loction_memory = location_completion.choices[0].message.content
+    print(loction_memory)
     
     return completion.choices[0].message.content
 
@@ -191,7 +184,7 @@ def GetImage(chatbot, image):
     
     # req 값이 없을 때의 예외 처리
     if(req == None):
-        return image
+        return "./mapfolding.webp"
     
     # '그림'이라는 단어가 있는지 확인, 첫 대화 질문이 아닌지 확인
     if(res.count('그림') == 0 and len(chatbot) != 1):
